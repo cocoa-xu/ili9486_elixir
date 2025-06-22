@@ -69,6 +69,22 @@ high-speed variant (125MHz SPI) with touch panel
 )
 ```
 
+injecting pre-opened SPI and GPIO handles
+```elixir
+{:ok, spi_lcd}   = Circuits.SPI.open("spidev0.0", speed_hz: 16_000_000)
+{:ok, spi_touch} = Circuits.SPI.open("spidev0.1", speed_hz: 50_000)
+
+{:ok, gpio_dc}  = Circuits.GPIO.open(24, :output)
+{:ok, gpio_rst} = Circuits.GPIO.open(25, :output)
+
+{:ok, disp} = ILI9486.new(
+    spi_lcd:   spi_lcd,
+    spi_touch: spi_touch,
+    gpio_dc:   gpio_dc,
+    gpio_rst:  gpio_rst
+)
+```
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
