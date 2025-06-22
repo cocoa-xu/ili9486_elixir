@@ -225,6 +225,9 @@ defmodule ILI9486 do
 
   @impl true
   def init(opts) do
+    # Make sure terminate/2 is called on shutdown
+    Process.flag(:trap_exit, true)
+
     port = opts[:port] || 0
     lcd_cs = opts[:lcd_cs] || 0
     touch_cs = opts[:touch_cs]
@@ -332,6 +335,19 @@ defmodule ILI9486 do
       |> _init(is_high_speed)
 
     {:ok, self}
+  end
+
+  @impl true
+  def terminate(_reason, %ILI9486{
+        lcd_spi: lcd_spi,
+        touch_spi: touch_spi,
+        gpio: [dc: dc_pin, rst: rst_pin]
+      }) do
+    Circuits.SPI.close(lcd_spi)
+    if touch_spi, do: Circuits.SPI.close(touch_spi)
+    Circuits.GPIO.close(dc_pin)
+    if rst_pin, do: Circuits.GPIO.close(rst_pin)
+    :ok
   end
 
   @doc """
