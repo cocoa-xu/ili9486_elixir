@@ -159,7 +159,7 @@ defmodule ILI9486 do
   # RST not connected
   # SPI speed: 16MHz
   # Pixel Format: BGR565
-  {:ok, disp} = ILI9486.new()
+  {:ok, disp} = ILI9486.start_link()
   ```
 
   ```elixir
@@ -170,7 +170,7 @@ defmodule ILI9486 do
   # Pixel Format: RGB666 (for demo only, not necessary)
   # Touch panel device at /dev/spidev0.1
   # Touch panel IRQ PIN 17
-  {:ok, disp} = ILI9486.new(
+  {:ok, disp} = ILI9486.start_link(
     speed_hz: 16_000_000,
     pix_fmt: :bgr666,
     rst: 25,
@@ -186,7 +186,7 @@ defmodule ILI9486 do
   # RST connects to PIN 25 (for demo only, not necessary)
   # SPI speed: 125MHz
   # Pixel Format: BGR666 (for demo only, not necessary)
-  {:ok, disp} = ILI9486.new(
+  {:ok, disp} = ILI9486.start_link(
     is_high_speed: true,
     speed_hz: 125_000_000,
     pix_fmt: :bgr666,
@@ -203,7 +203,7 @@ defmodule ILI9486 do
   # Pixel Format: BGR666 (for demo only, not necessary)
   # Touch panel device at /dev/spidev0.1
   # Touch panel IRQ PIN 17
-  {:ok, disp} = ILI9486.new(
+  {:ok, disp} = ILI9486.start_link(
     is_high_speed: true,
     speed_hz: 125_000_000,
     pix_fmt: :bgr666,
@@ -214,13 +214,20 @@ defmodule ILI9486 do
   ```
   """
   @doc functions: :client
-  def new(opts \\ []) do
-    GenServer.start(__MODULE__, opts)
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: opts[:name])
   end
 
+  @deprecated "Use start_link/1 instead"
+  @doc functions: :client
+  def new(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts)
+  end
+
+  @deprecated "Use start_link/1 instead"
   def new!(opts \\ []) do
-    {:ok, self} = GenServer.start(__MODULE__, opts)
-    self
+    {:ok, pid} = GenServer.start_link(__MODULE__, opts)
+    pid
   end
 
   @impl true
