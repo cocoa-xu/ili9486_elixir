@@ -219,8 +219,8 @@ defmodule ILI9486 do
   end
 
   def new!(opts \\ []) do
-    {:ok, self} = GenServer.start(__MODULE__, opts)
-    self
+    {:ok, pid} = GenServer.start(__MODULE__, opts)
+    pid
   end
 
   @impl true
@@ -314,7 +314,7 @@ defmodule ILI9486 do
 
     {:ok, touch_pid} = _init_touch_irq(touch_irq)
 
-    self =
+    display =
       %ILI9486{
         lcd_spi: lcd_spi,
         touch_spi: touch_spi,
@@ -349,7 +349,7 @@ defmodule ILI9486 do
       |> _reset()
       |> _init(is_high_speed)
 
-    {:ok, self}
+    {:ok, display}
   end
 
   @doc """
@@ -372,16 +372,16 @@ defmodule ILI9486 do
   @doc """
   Reset the display, if reset pin is connected.
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def reset(self_pid) do
     GenServer.call(self_pid, :reset)
   end
 
-  defp _reset(self = %ILI9486{gpio: gpio}) do
+  defp _reset(display = %ILI9486{gpio: gpio}) do
     gpio_rst = gpio[:rst]
 
     if gpio_rst != nil do
@@ -393,13 +393,13 @@ defmodule ILI9486 do
       :timer.sleep(500)
     end
 
-    self
+    display
   end
 
   @doc """
   Get screen size
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
 
   **return**: `%{height: height, width: width}`
   """
@@ -415,7 +415,7 @@ defmodule ILI9486 do
   @doc """
   Get display pixel format
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
 
   **return**: one of `:bgr565`, `:rgb565`, `:bgr666`, `:rgb666`
   """
@@ -431,10 +431,10 @@ defmodule ILI9486 do
   @doc """
   Set display pixel format
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
   - **pix_fmt**: one of `:bgr565`, `:rgb565`, :bgr666`, `:rgb666`
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def set_pix_fmt(self_pid, pix_fmt)
@@ -442,65 +442,65 @@ defmodule ILI9486 do
     GenServer.call(self_pid, {:set_pix_fmt, pix_fmt})
   end
 
-  defp _set_pix_fmt(self = %ILI9486{}, pix_fmt)
+  defp _set_pix_fmt(display = %ILI9486{}, pix_fmt)
        when pix_fmt == :bgr565 or pix_fmt == :rgb565 or pix_fmt == :bgr666 or pix_fmt == :rgb666 do
-    %ILI9486{self | pix_fmt: pix_fmt}
-    |> _command(kMADCTL(), cmd_data: _mad_mode(self))
+    %ILI9486{display | pix_fmt: pix_fmt}
+    |> _command(kMADCTL(), cmd_data: _mad_mode(display))
   end
 
   @doc """
   Turn on/off display
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
   - **status**: either `:on` or `:off`
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def set_display(self_pid, status) when status == :on or status == :off do
     GenServer.call(self_pid, {:set_display, status})
   end
 
-  defp _set_display(self = %ILI9486{}, :on) do
-    _command(self, kDISPON())
+  defp _set_display(display = %ILI9486{}, :on) do
+    _command(display, kDISPON())
   end
 
-  defp _set_display(self = %ILI9486{}, :off) do
-    _command(self, kDISPOFF())
+  defp _set_display(display = %ILI9486{}, :off) do
+    _command(display, kDISPOFF())
   end
 
   @doc """
   Set display mode
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
   - **display_mode**: Valid values: `:normal`, `:partial`, `:idle`
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def set_display_mode(self_pid, display_mode) do
     GenServer.call(self_pid, {:set_display_mode, display_mode})
   end
 
-  defp _set_display_mode(self = %ILI9486{}, display_mode = :normal) do
-    %ILI9486{self | display_mode: display_mode}
+  defp _set_display_mode(display = %ILI9486{}, display_mode = :normal) do
+    %ILI9486{display | display_mode: display_mode}
     |> _command(kNORON())
   end
 
-  defp _set_display_mode(self = %ILI9486{}, display_mode = :partial) do
-    %ILI9486{self | display_mode: display_mode}
+  defp _set_display_mode(display = %ILI9486{}, display_mode = :partial) do
+    %ILI9486{display | display_mode: display_mode}
     |> _command(kPTLON())
   end
 
-  defp _set_display_mode(self = %ILI9486{}, display_mode = :idle) do
-    %ILI9486{self | display_mode: display_mode}
-    |> _command(self, kIDLEON())
+  defp _set_display_mode(display = %ILI9486{}, display_mode = :idle) do
+    %ILI9486{display | display_mode: display_mode}
+    |> _command(display, kIDLEON())
   end
 
   @doc """
   Set frame rate
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
   - **frame_rate**: Valid value should be one of the following
     - 28
     - 30
@@ -526,7 +526,7 @@ defmodule ILI9486 do
   end
 
   defp _set_frame_rate(
-         self = %ILI9486{display_mode: display_mode, diva: diva, rtna: rtna},
+         display = %ILI9486{display_mode: display_mode, diva: diva, rtna: rtna},
          frame_rate
        ) do
     index = Enum.find_index(_valid_frame_rates(display_mode), fn valid -> valid == frame_rate end)
@@ -536,7 +536,7 @@ defmodule ILI9486 do
       |> bsl(4)
       |> bor(diva)
 
-    %ILI9486{self | frame_rate: frame_rate}
+    %ILI9486{display | frame_rate: frame_rate}
     |> _command(kFRMCTR1())
     |> _data(p1)
     |> _data(rtna)
@@ -549,23 +549,23 @@ defmodule ILI9486 do
   @doc """
   Write the provided 16bit BGR565/RGB565 image to the hardware.
 
-  - **self**: `%ILI9486{}`
-  - **image_data**: Should be 16bit BGR565/RGB565 format (same channel order as in `self`) and
+  - **display**: `%ILI9486{}`
+  - **image_data**: Should be 16bit BGR565/RGB565 format (same channel order as in `display`) and
     the same dimensions (width x height x 3) as the display hardware.
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def display_565(self_pid, image_data) when is_binary(image_data) or is_list(image_data) do
     GenServer.call(self_pid, {:display_565, image_data})
   end
 
-  defp _display_565(self, image_data) when is_binary(image_data) do
-    _display_565(self, :binary.bin_to_list(image_data))
+  defp _display_565(display, image_data) when is_binary(image_data) do
+    _display_565(display, :binary.bin_to_list(image_data))
   end
 
-  defp _display_565(self, image_data) when is_list(image_data) do
-    self
+  defp _display_565(display, image_data) when is_list(image_data) do
+    display
     |> _set_window(x0: 0, y0: 0, x1: nil, y2: nil)
     |> _send(image_data, true, false)
   end
@@ -573,23 +573,23 @@ defmodule ILI9486 do
   @doc """
   Write the provided 18bit BGR666/RGB666 image to the hardware.
 
-  - **self**: `%ILI9486{}`
-  - **image_data**: Should be 18bit BGR666/RGB666 format (same channel order as in `self`) and
+  - **display**: `%ILI9486{}`
+  - **image_data**: Should be 18bit BGR666/RGB666 format (same channel order as in `display`) and
     the same dimensions (width x height x 3) as the display hardware.
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def display_666(self_pid, image_data) when is_binary(image_data) or is_list(image_data) do
     GenServer.call(self_pid, {:display_666, image_data})
   end
 
-  defp _display_666(self, image_data) when is_binary(image_data) do
-    _display_666(self, :binary.bin_to_list(image_data))
+  defp _display_666(display, image_data) when is_binary(image_data) do
+    _display_666(display, :binary.bin_to_list(image_data))
   end
 
-  defp _display_666(self, image_data) when is_list(image_data) do
-    self
+  defp _display_666(display, image_data) when is_list(image_data) do
+    display
     |> _set_window(x0: 0, y0: 0, x1: nil, y2: nil)
     |> _send(image_data, true, false)
   end
@@ -597,11 +597,11 @@ defmodule ILI9486 do
   @doc """
   Write the provided 24bit BGR888/RGB888 image to the hardware.
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
   - **image_data**: Should be 24bit format and the same dimensions (width x height x 3) as the display hardware.
   - **pix_fmt**: Either `:rgb888` or `:bgr888`. Indicates the channel order of the provided `image_data`.
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def display(self_pid, image_data, source_color)
@@ -609,22 +609,22 @@ defmodule ILI9486 do
     GenServer.call(self_pid, {:display, image_data, source_color})
   end
 
-  defp _display(self = %ILI9486{pix_fmt: target_color}, image_data, source_color)
+  defp _display(display = %ILI9486{pix_fmt: target_color}, image_data, source_color)
        when is_binary(image_data) and (source_color == :rgb888 or source_color == :bgr888) and
               (target_color == :rgb565 or target_color == :bgr565) do
-    _display_565(self, _to_565(image_data, source_color, target_color))
+    _display_565(display, _to_565(image_data, source_color, target_color))
   end
 
-  defp _display(self = %ILI9486{pix_fmt: target_color}, image_data, source_color)
+  defp _display(display = %ILI9486{pix_fmt: target_color}, image_data, source_color)
        when is_binary(image_data) and (source_color == :rgb888 or source_color == :bgr888) and
               (target_color == :rgb666 or target_color == :bgr666) do
-    _display_666(self, _to_666(image_data, source_color, target_color))
+    _display_666(display, _to_666(image_data, source_color, target_color))
   end
 
-  defp _display(self, image_data, source_color)
+  defp _display(display, image_data, source_color)
        when is_list(image_data) and (source_color == :rgb888 or source_color == :bgr888) do
     _display(
-      self,
+      display,
       Enum.map(image_data, &Enum.into(&1, <<>>, fn bit -> <<bit::8>> end)),
       source_color
     )
@@ -633,7 +633,7 @@ defmodule ILI9486 do
   @doc """
   Set touch panel callback function
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
   - **callback**: callback function. 3 arguments: `pin`, `timestamp`, `status`
   """
   @doc functions: :client
@@ -641,16 +641,16 @@ defmodule ILI9486 do
     GenServer.call(self_pid, {:set_touch_callback, callback})
   end
 
-  defp _set_touch_callback(self = %ILI9486{touch_pid: touch_pid}, callback)
+  defp _set_touch_callback(display = %ILI9486{touch_pid: touch_pid}, callback)
        when is_function(callback) do
     GPIOIRQDevice.set_callback(touch_pid, callback)
-    self
+    display
   end
 
   @doc """
   Write a byte to the display as command data.
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
   - **cmd**: command data
   - **opts**:
     - **cmd_data**: cmd data to be sent.
@@ -658,46 +658,46 @@ defmodule ILI9486 do
     - **delay**: wait `delay` ms after the cmd data is sent
       Default value: `0`. (no wait)
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def command(self_pid, cmd, opts \\ []) when is_integer(cmd) do
     GenServer.call(self_pid, {:command, cmd, opts})
   end
 
-  defp _command(self, cmd, opts \\ [])
+  defp _command(display, cmd, opts \\ [])
 
-  defp _command(self = %ILI9486{data_bus: :parallel_8bit}, cmd, opts) when is_integer(cmd) do
+  defp _command(display = %ILI9486{data_bus: :parallel_8bit}, cmd, opts) when is_integer(cmd) do
     cmd_data = opts[:cmd_data] || []
     delay = opts[:delay] || 0
 
-    self
+    display
     |> _send(cmd, false, false)
     |> _data(cmd_data)
 
     :timer.sleep(delay)
-    self
+    display
   end
 
-  defp _command(self = %ILI9486{data_bus: :parallel_16bit}, cmd, opts) when is_integer(cmd) do
+  defp _command(display = %ILI9486{data_bus: :parallel_16bit}, cmd, opts) when is_integer(cmd) do
     cmd_data = opts[:cmd_data] || []
     delay = opts[:delay] || 0
 
-    self
+    display
     |> _send(cmd, false, true)
     |> _data(cmd_data)
 
     :timer.sleep(delay)
-    self
+    display
   end
 
   @doc """
   Write a byte or array of bytes to the display as display data.
 
-  - **self**: `%ILI9486{}`
+  - **display**: `%ILI9486{}`
   - **data**: display data
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def data(_self_pid, []), do: :ok
@@ -706,34 +706,34 @@ defmodule ILI9486 do
     GenServer.call(self_pid, {:data, data})
   end
 
-  defp _data(self, []), do: self
+  defp _data(display, []), do: display
 
-  defp _data(self = %ILI9486{data_bus: :parallel_8bit}, data) do
-    _send(self, data, true, false)
+  defp _data(display = %ILI9486{data_bus: :parallel_8bit}, data) do
+    _send(display, data, true, false)
   end
 
-  defp _data(self = %ILI9486{data_bus: :parallel_16bit}, data) do
-    _send(self, data, true, true)
+  defp _data(display = %ILI9486{data_bus: :parallel_16bit}, data) do
+    _send(display, data, true, true)
   end
 
   @doc """
   Send bytes to the ILI9486
 
-  - **self**: `%ILI9486{}`
-  - **bytes**: The bytes to be sent to `self`
+  - **display**: `%ILI9486{}`
+  - **bytes**: The bytes to be sent to `display`
 
     - `when is_integer(bytes)`,
       `sent` will take the 8 least-significant bits `[band(bytes, 0xFF)]`
-      and send it to `self`
+      and send it to `display`
     - `when is_list(bytes)`, `bytes` will be casting to bitstring and then sent
-      to `self`
+      to `display`
 
   - **is_data**:
 
     - `true`: `bytes` will be sent as data
     - `false`: `bytes` will be sent as commands
 
-  **return**: `self`
+  **return**: `display`
   """
   @doc functions: :client
   def send(self_pid, bytes, is_data)
@@ -772,28 +772,28 @@ defmodule ILI9486 do
     Enum.reverse(chunks)
   end
 
-  defp _send(self, bytes, is_data, to_be16 \\ false)
+  defp _send(display, bytes, is_data, to_be16 \\ false)
 
-  defp _send(self = %ILI9486{}, bytes, true, to_be16) do
-    _send(self, bytes, 1, to_be16)
+  defp _send(display = %ILI9486{}, bytes, true, to_be16) do
+    _send(display, bytes, 1, to_be16)
   end
 
-  defp _send(self = %ILI9486{}, bytes, false, to_be16) do
-    _send(self, bytes, 0, to_be16)
+  defp _send(display = %ILI9486{}, bytes, false, to_be16) do
+    _send(display, bytes, 0, to_be16)
   end
 
-  defp _send(self = %ILI9486{}, bytes, is_data, to_be16)
+  defp _send(display = %ILI9486{}, bytes, is_data, to_be16)
        when (is_data == 0 or is_data == 1) and is_integer(bytes) do
-    _send(self, <<Bitwise.band(bytes, 0xFF)>>, is_data, to_be16)
+    _send(display, <<Bitwise.band(bytes, 0xFF)>>, is_data, to_be16)
   end
 
-  defp _send(self = %ILI9486{}, bytes, is_data, to_be16)
+  defp _send(display = %ILI9486{}, bytes, is_data, to_be16)
        when (is_data == 0 or is_data == 1) and is_list(bytes) do
-    _send(self, IO.iodata_to_binary(bytes), is_data, to_be16)
+    _send(display, IO.iodata_to_binary(bytes), is_data, to_be16)
   end
 
   defp _send(
-         self = %ILI9486{gpio: gpio, lcd_spi: spi, chunk_size: chunk_size},
+         display = %ILI9486{gpio: gpio, lcd_spi: spi, chunk_size: chunk_size},
          bytes,
          is_data,
          to_be16
@@ -808,79 +808,79 @@ defmodule ILI9486 do
       {:ok, _ret} = Circuits.SPI.transfer(spi, xfdata)
     end
 
-    self
+    display
   end
 
   @impl true
-  def handle_call(:reset, _from, self) do
-    {:reply, :ok, _reset(self)}
+  def handle_call(:reset, _from, display) do
+    {:reply, :ok, _reset(display)}
   end
 
   @impl true
-  def handle_call(:size, _from, self) do
-    ret = _size(self)
-    {:reply, ret, self}
+  def handle_call(:size, _from, display) do
+    ret = _size(display)
+    {:reply, ret, display}
   end
 
   @impl true
-  def handle_call(:pix_fmt, _from, self) do
-    ret = _pix_fmt(self)
-    {:reply, ret, self}
+  def handle_call(:pix_fmt, _from, display) do
+    ret = _pix_fmt(display)
+    {:reply, ret, display}
   end
 
   @impl true
-  def handle_call({:set_pix_fmt, pix_fmt}, _from, self) do
-    {:reply, :ok, _set_pix_fmt(self, pix_fmt)}
+  def handle_call({:set_pix_fmt, pix_fmt}, _from, display) do
+    {:reply, :ok, _set_pix_fmt(display, pix_fmt)}
   end
 
   @impl true
-  def handle_call({:set_display, status}, _from, self) do
-    {:reply, :ok, _set_display(self, status)}
+  def handle_call({:set_display, status}, _from, display) do
+    {:reply, :ok, _set_display(display, status)}
   end
 
   @impl true
-  def handle_call({:set_display_mode, display_mode}, _from, self) do
-    {:reply, :ok, _set_display_mode(self, display_mode)}
+  def handle_call({:set_display_mode, display_mode}, _from, display) do
+    {:reply, :ok, _set_display_mode(display, display_mode)}
   end
 
   @impl true
-  def handle_call({:set_frame_rate, frame_rate}, _from, self) do
-    {:reply, :ok, _set_frame_rate(self, frame_rate)}
+  def handle_call({:set_frame_rate, frame_rate}, _from, display) do
+    {:reply, :ok, _set_frame_rate(display, frame_rate)}
   end
 
   @impl true
-  def handle_call({:display_565, image_data}, _from, self) do
-    {:reply, :ok, _display_565(self, image_data)}
+  def handle_call({:display_565, image_data}, _from, display) do
+    {:reply, :ok, _display_565(display, image_data)}
   end
 
   @impl true
-  def handle_call({:display_666, image_data}, _from, self) do
-    {:reply, :ok, _display_666(self, image_data)}
+  def handle_call({:display_666, image_data}, _from, display) do
+    {:reply, :ok, _display_666(display, image_data)}
   end
 
   @impl true
-  def handle_call({:display, image_data, source_color}, _from, self) do
-    {:reply, :ok, _display(self, image_data, source_color)}
+  def handle_call({:display, image_data, source_color}, _from, display) do
+    {:reply, :ok, _display(display, image_data, source_color)}
   end
 
   @impl true
-  def handle_call({:set_touch_callback, callback}, _from, self) do
-    {:reply, :ok, _set_touch_callback(self, callback)}
+  def handle_call({:set_touch_callback, callback}, _from, display) do
+    {:reply, :ok, _set_touch_callback(display, callback)}
   end
 
   @impl true
-  def handle_call({:command, cmd, opts}, _from, self) do
-    {:reply, :ok, _command(self, cmd, opts)}
+  def handle_call({:command, cmd, opts}, _from, display) do
+    {:reply, :ok, _command(display, cmd, opts)}
   end
 
   @impl true
-  def handle_call({:data, data}, _from, self) do
-    {:reply, :ok, _data(self, data)}
+  def handle_call({:data, data}, _from, display) do
+    {:reply, :ok, _data(display, data)}
   end
 
   @impl true
-  def handle_call({:send, bytes, is_data}, _from, self) do
-    {:reply, :ok, _send(self, bytes, is_data)}
+  def handle_call({:send, bytes, is_data}, _from, display) do
+    {:reply, :ok, _send(display, bytes, is_data)}
   end
 
   defp _init_spi(_port, nil, _speed_hz), do: {:ok, nil}
@@ -916,96 +916,96 @@ defmodule ILI9486 do
   defp _get_pix_fmt(%ILI9486{pix_fmt: :rgb666}), do: k18BIT_PIX()
   defp _get_pix_fmt(%ILI9486{pix_fmt: :bgr666}), do: k18BIT_PIX()
 
-  defp _mad_mode(self = %ILI9486{rotation: 0, mad_mode: :right_down}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 0, mad_mode: :right_down}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_RIGHT())
     |> bor(kMAD_Y_DOWN())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 90, mad_mode: :right_down}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 90, mad_mode: :right_down}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_LEFT())
     |> bor(kMAD_Y_DOWN())
     |> bor(kMAD_VERTICAL())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 180, mad_mode: :right_down}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 180, mad_mode: :right_down}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_LEFT())
     |> bor(kMAD_Y_UP())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 270, mad_mode: :right_down}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 270, mad_mode: :right_down}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_RIGHT())
     |> bor(kMAD_Y_UP())
     |> bor(kMAD_VERTICAL())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 0, mad_mode: :right_up}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 0, mad_mode: :right_up}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_RIGHT())
     |> bor(kMAD_Y_UP())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 90, mad_mode: :right_up}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 90, mad_mode: :right_up}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_RIGHT())
     |> bor(kMAD_Y_DOWN())
     |> bor(kMAD_VERTICAL())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 180, mad_mode: :right_up}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 180, mad_mode: :right_up}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_LEFT())
     |> bor(kMAD_Y_DOWN())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 270, mad_mode: :right_up}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 270, mad_mode: :right_up}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_LEFT())
     |> bor(kMAD_Y_UP())
     |> bor(kMAD_VERTICAL())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 0, mad_mode: :rgb_mode}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 0, mad_mode: :rgb_mode}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_LEFT())
     |> bor(kMAD_Y_DOWN())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 90, mad_mode: :rgb_mode}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 90, mad_mode: :rgb_mode}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_RIGHT())
     |> bor(kMAD_Y_DOWN())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 180, mad_mode: :rgb_mode}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 180, mad_mode: :rgb_mode}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_RIGHT())
     |> bor(kMAD_Y_UP())
   end
 
-  defp _mad_mode(self = %ILI9486{rotation: 270, mad_mode: :rgb_mode}) do
-    self
+  defp _mad_mode(display = %ILI9486{rotation: 270, mad_mode: :rgb_mode}) do
+    display
     |> _get_channel_order()
     |> bor(kMAD_X_LEFT())
     |> bor(kMAD_Y_UP())
   end
 
-  defp _init(self = %ILI9486{frame_rate: frame_rate}, false) do
-    self
+  defp _init(display = %ILI9486{frame_rate: frame_rate}, false) do
+    display
     # software reset
     |> _command(kSWRESET(), delay: 120)
     # RGB mode off
@@ -1013,8 +1013,8 @@ defmodule ILI9486 do
     # turn off sleep mode
     |> _command(kSLPOUT(), delay: 200)
     # interface format
-    |> _command(kPIXFMT(), cmd_data: _get_pix_fmt(self))
-    |> _command(kMADCTL(), cmd_data: _mad_mode(self))
+    |> _command(kPIXFMT(), cmd_data: _get_pix_fmt(display))
+    |> _command(kMADCTL(), cmd_data: _mad_mode(display))
     |> _command(kPWCTR3(), cmd_data: 0x44)
     |> _command(kVMCTR1())
     |> _data(0x00)
@@ -1076,8 +1076,8 @@ defmodule ILI9486 do
     |> _set_frame_rate(frame_rate)
   end
 
-  defp _init(self = %ILI9486{frame_rate: frame_rate}, true) do
-    self
+  defp _init(display = %ILI9486{frame_rate: frame_rate}, true) do
+    display
     # software reset
     |> _command(kSWRESET(), delay: 120)
     # RGB mode off
@@ -1085,7 +1085,7 @@ defmodule ILI9486 do
     # turn off sleep mode
     |> _command(kSLPOUT(), delay: 250)
     # interface format
-    |> _command(kPIXFMT(), cmd_data: _get_pix_fmt(self))
+    |> _command(kPIXFMT(), cmd_data: _get_pix_fmt(display))
     |> _command(kPWCTR3(), cmd_data: 0x44)
     |> _command(kVMCTR1(), cmd_data: [0x00, 0x00, 0x00, 0x00])
     |> _command(kGMCTRP1())
@@ -1139,11 +1139,11 @@ defmodule ILI9486 do
     |> _set_display_mode(:normal)
     |> _command(kINVOFF())
     |> _command(kDISPON(), delay: 100)
-    |> _command(kMADCTL(), cmd_data: _mad_mode(self))
+    |> _command(kMADCTL(), cmd_data: _mad_mode(display))
     |> _set_frame_rate(frame_rate)
   end
 
-  defp _set_window(self = %ILI9486{opts: board}, opts = [x0: 0, y0: 0, x1: nil, y2: nil]) do
+  defp _set_window(display = %ILI9486{opts: board}, opts = [x0: 0, y0: 0, x1: nil, y2: nil]) do
     width = board[:width]
     height = board[:height]
     offset_top = board[:offset_top]
@@ -1159,7 +1159,7 @@ defmodule ILI9486 do
     x0 = x0 + offset_left
     x1 = x1 + offset_left
 
-    self
+    display
     |> _command(kCASET())
     |> _data(bsr(x0, 8))
     |> _data(band(x0, 0xFF))
