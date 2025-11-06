@@ -24,130 +24,118 @@ defmodule ILI9486 do
     :chunk_size
   ]
 
+  @typedoc "Supported pixel formats"
+  @type pixel_format :: :rgb565 | :bgr565 | :rgb666 | :bgr666
+
+  @typedoc "Screen rotation in degrees"
+  @type rotation :: 0 | 90 | 180 | 270
+
+  @typedoc "MADCTL orientation / RGB mode"
+  @type mad_mode :: :right_down | :right_up | :rgb_mode
+
+  @typedoc "Display mode"
+  @type display_mode :: :normal | :partial | :idle
+
+  @typedoc "Supported frame rates (Hz)"
+  @type frame_rate ::
+          28 | 30 | 32 | 34 | 36 | 39 | 42 | 46 | 50 | 56 | 62 | 70 | 81 | 96 | 117
+
+  @typedoc "Division ratio for internal clocks (0=focs, 1=focs/2, 2=focs/4, 3=focs/8)"
+  @type diva :: 0..3
+
+  @typedoc "RTNA timing value (0b10000=16 .. 0b11111=31)"
+  @type rtna :: 0b10000..0b11111
+
+  @typedoc "Parallel data bus mode"
+  @type data_bus :: :parallel_8bit | :parallel_16bit
+
+  @typedoc "Supported source color formats"
+  @type color_format :: :rgb888 | :bgr888
+
+  @typedoc "Display struct"
+  @type t :: %__MODULE__{
+          gpio: keyword(),
+          opts: keyword(),
+          lcd_spi: any(),
+          touch_spi: any(),
+          touch_pid: pid() | nil,
+          pix_fmt: pixel_format(),
+          rotation: rotation(),
+          mad_mode: mad_mode(),
+          data_bus: data_bus(),
+          display_mode: display_mode(),
+          frame_rate: pos_integer(),
+          diva: diva(),
+          rtna: rtna(),
+          chunk_size: pos_integer()
+        }
+
+  @typedoc "Image data buffer accepted by display functions"
+  @type image_data :: binary() | [byte() | [byte()]]
+
+  @typedoc "Callback invoked on touch IRQ"
+  @type touch_callback :: GPIOIRQDevice.irq_callback()
+
+  @typedoc """
+  Options for `start_link/1`.
+
+    - `:port` - SPI port number (default: `0`).
+    - `:lcd_cs` - LCD chip select (default: `0`).
+    - `:touch_cs` - Touch panel chip select, optional (default: `nil`).
+    - `:touch_irq` - Touch panel IRQ pin (active low), optional (default: `nil`).
+    - `:touch_speed_hz` - SPI speed for touch panel (default: `50_000`).
+    - `:dc` - D/C pin (default: `24`).
+    - `:rst` - Reset pin for ILI9486, optional (default: `nil`).
+    - `:width` - Display width in pixels (default: `480`).
+    - `:height` - Display height in pixels (default: `320`).
+    - `:offset_top` - Vertical offset (default: `0`).
+    - `:offset_left` - Horizontal offset (default: `0`).
+    - `:speed_hz` - SPI speed for LCD (default: `16_000_000`).
+    - `:pix_fmt` - Pixel format, one of `:bgr565 | :rgb565 | :bgr666 | :rgb666` (default: `:bgr565`).
+    - `:rotation` - Rotation, one of `0 | 90 | 180 | 270` (default: `90`).
+    - `:mad_mode` - MAD mode, one of `:right_down | :right_up | :rgb_mode` (default: `:right_down`).
+    - `:display_mode` - Display mode, one of `:normal | :partial | :idle` (default: `:normal`).
+    - `:frame_rate` - Frame rate (Hz), one of `28, 30, 32, 34, 36, 39, 42, 46, 50, 56, 62, 70, 81, 96, 117` (default: `70`).
+    - `:diva` - Clock division (`0` = focs, `1` = focs/2, `2` = focs/4, `3` = focs/8) (default: `0`).
+    - `:rtna` - Line period `RTNA[4:0]`, `0b10000` (16) to `0b11111` (31), default `0b10001` (17); each step increases clocks by 1.
+    - `:is_high_speed` - Use high-speed variant (125 MHz SPI) (default: `false`).
+    - `:chunk_size` - Batch transfer size; default `4096` (lo-speed) or `0x8000` (hi-speed).
+    - `:spi_lcd` - Pre-opened SPI handle for LCD; overrides `:port`/`:lcd_cs` when set.
+    - `:spi_touch` - Pre-opened SPI handle for touch; overrides `:port`/`:touch_cs` when set.
+    - `:gpio_dc` - Pre-opened GPIO for D/C; overrides `:dc` when set.
+    - `:gpio_rst` - Pre-opened GPIO for reset; overrides `:rst` when set.
+    - `:name` - Registered name for the GenServer.
+  """
+  @type ili9486_option ::
+          {:port, non_neg_integer()}
+          | {:lcd_cs, non_neg_integer()}
+          | {:touch_cs, non_neg_integer() | nil}
+          | {:touch_irq, non_neg_integer() | nil}
+          | {:touch_speed_hz, pos_integer()}
+          | {:dc, non_neg_integer()}
+          | {:rst, non_neg_integer() | nil}
+          | {:width, pos_integer()}
+          | {:height, pos_integer()}
+          | {:offset_top, non_neg_integer()}
+          | {:offset_left, non_neg_integer()}
+          | {:speed_hz, pos_integer()}
+          | {:pix_fmt, pixel_format()}
+          | {:rotation, rotation()}
+          | {:mad_mode, mad_mode()}
+          | {:display_mode, display_mode()}
+          | {:frame_rate, frame_rate()}
+          | {:diva, diva()}
+          | {:rtna, rtna()}
+          | {:is_high_speed, boolean()}
+          | {:chunk_size, pos_integer()}
+          | {:spi_lcd, any()}
+          | {:spi_touch, any()}
+          | {:gpio_dc, any()}
+          | {:gpio_rst, any()}
+          | {:name, GenServer.name()}
+
   @doc """
-  New connection to an ILI9486
-
-  - **port**: SPI port number
-
-    Default value: `0`
-
-  - **lcd_cs**: LCD chip-selection number
-
-    Default value: `0`.
-
-  - **touch_cs**: (Optional) Touch panel chip-selection number
-
-    Default value: `nil`.
-
-  - **touch_irq**: (Optional) Touch panel interrupt. Low level while the Touch Panel detects touching
-
-    Default value: `nil`.
-
-  - **touch_speed_hz**: SPI Speed for the touch panel
-
-    Default value: `50000`.
-
-  - **dc**: Command/data register selection
-
-    Default value: `24`.
-
-  - **rst**: Reset pin for ILI9486
-
-    Default value: `nil`.
-
-  - **width**: Width of display connected to ILI9486
-
-    Default value: `480`.
-
-  - **height**: Height of display connected to ILI9486
-
-    Default value: `320`.
-
-  - **offset_top**: Offset to top row
-
-    Default value: `0`.
-
-  - **offset_left**: Offset to left column
-
-    Default value: `0`.
-
-  - **speed_hz**: SPI speed (in Hz)
-
-    Default value: `16_000_000`.
-
-  - **pix_fmt**: either `:bgr565`, `:rgb565`, `:bgr666` or `:rgb666`
-
-    Default value: `:bgr565`.
-
-  - **rotation**: Screen rotation.
-
-    Default value: `90`. Only `0`, `90`, `180` and `270` are valid.
-
-  - **mad_mode**: MAD mode.
-
-    Default value: `:right_down`. Valid values: `:right_down`, `:right_up` and `:rgb_mode`
-
-  - **display_mode**: Display mode.
-
-    Default value: `:normal`. Enters normal display mode after initialization.
-
-  - **frame_rate**: Frame rate.
-
-    Default value: `70`. Valid frame rate should be one of the following:
-
-    - 28
-    - 30
-    - 32
-    - 34
-    - 36
-    - 39
-    - 42
-    - 46
-    - 50
-    - 56
-    - 62
-    - 70
-    - 81
-    - 96
-    - 117
-
-  - **diva**: Division ratio for internal clocks.
-
-    Default value: `0b00`.
-
-    - `0b00`: focs
-    - `0b01`: focs/2
-    - `0b10`: focs/4
-    - `0b11`: focs/8
-
-  - **rtna**: `RTNA[4:0]` is used to set 1H (line) period of Normal mode at CPU interface.
-
-    Default value: `0b10001`. Valid value starts from `0b10000` (16 clocks) to `0b11111` (31 clocks), i.e.,
-    clocks increases by 1 as `rtna` increasing by 1.
-
-  - **is_high_speed**: Is the high speed variant?
-
-    Default value: `false`. Set `true` to make it compatible with the high speed variant. (125MHz SPI).
-
-  - **chunk_size**: batch transfer size.
-
-    Default value: `4096` for the lo-speed variant. `0x8000` for the hi-speed variant.
-
-  - **spi_lcd**: pre-opened SPI handle for the LCD bus.
-
-    Default value: `nil`. If provided, overrides `:port` and `:lcd_cs`.
-
-  - **spi_touch**: pre-opened SPI handle for the touch panel bus.
-
-    Default value: `nil`. If provided, overrides `:port` and `:touch_cs`.
-
-  - **gpio_dc**: pre-opened GPIO pin for the D/C line.
-
-    Default value: `nil`. If provided, overrides `:dc`.
-
-  - **gpio_rst**: pre-opened GPIO pin for the reset line.
-
-    Default value: `nil`. If provided, overrides `:rst`.
+  Start a new connection to an ILI9486.
 
   **return**: `%ILI9486{}`
 
@@ -214,23 +202,27 @@ defmodule ILI9486 do
   ```
   """
   @doc functions: :client
+  @spec start_link([ili9486_option()]) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: opts[:name])
   end
 
   @deprecated "Use start_link/1 instead"
   @doc functions: :client
+  @spec new([ili9486_option()]) :: GenServer.on_start()
   def new(opts \\ []) do
     GenServer.start_link(__MODULE__, opts)
   end
 
   @deprecated "Use start_link/1 instead"
+  @spec new!([ili9486_option()]) :: pid()
   def new!(opts \\ []) do
     {:ok, pid} = GenServer.start_link(__MODULE__, opts)
     pid
   end
 
   @impl true
+  @spec init(Keyword.t()) :: {:ok, t()}
   def init(opts) do
     # Make sure terminate/2 is called on shutdown
     Process.flag(:trap_exit, true)
@@ -363,6 +355,7 @@ defmodule ILI9486 do
   Closes all SPI and GPIO resources on shutdown.
   """
   @impl true
+  @spec terminate(any(), t()) :: :ok
   def terminate(_reason, %{lcd_spi: lcd_spi, touch_spi: touch_spi, gpio: gpio}) do
     dc_pin = gpio[:dc]
     rst_pin = gpio[:rst]
@@ -384,6 +377,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec reset(pid()) :: :ok
   def reset(self_pid) do
     GenServer.call(self_pid, :reset)
   end
@@ -411,6 +405,7 @@ defmodule ILI9486 do
   **return**: `%{height: height, width: width}`
   """
   @doc functions: :client
+  @spec size(pid()) :: %{height: pos_integer(), width: pos_integer()}
   def size(self_pid) do
     GenServer.call(self_pid, :size)
   end
@@ -427,6 +422,7 @@ defmodule ILI9486 do
   **return**: one of `:bgr565`, `:rgb565`, `:bgr666`, `:rgb666`
   """
   @doc functions: :client
+  @spec pix_fmt(pid()) :: pixel_format()
   def pix_fmt(self_pid) do
     GenServer.call(self_pid, :pix_fmt)
   end
@@ -444,6 +440,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec set_pix_fmt(pid(), pixel_format()) :: :ok
   def set_pix_fmt(self_pid, pix_fmt)
       when pix_fmt == :bgr565 or pix_fmt == :rgb565 or pix_fmt == :bgr666 or pix_fmt == :rgb666 do
     GenServer.call(self_pid, {:set_pix_fmt, pix_fmt})
@@ -464,6 +461,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec set_display(pid(), :on | :off) :: :ok
   def set_display(self_pid, status) when status == :on or status == :off do
     GenServer.call(self_pid, {:set_display, status})
   end
@@ -485,6 +483,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec set_display_mode(pid(), display_mode()) :: :ok
   def set_display_mode(self_pid, display_mode) do
     GenServer.call(self_pid, {:set_display_mode, display_mode})
   end
@@ -501,7 +500,7 @@ defmodule ILI9486 do
 
   defp _set_display_mode(display = %ILI9486{}, display_mode = :idle) do
     %ILI9486{display | display_mode: display_mode}
-    |> _command(display, kIDLEON())
+    |> _command(kIDLEON())
   end
 
   @doc """
@@ -525,9 +524,10 @@ defmodule ILI9486 do
     - 96
     - 117
 
-  **return**: `:ok` | `{:error, reason}`
+  **return**: `:ok`
   """
   @doc functions: :client
+  @spec set_frame_rate(pid(), frame_rate()) :: :ok
   def set_frame_rate(self_pid, frame_rate) do
     GenServer.call(self_pid, {:set_frame_rate, frame_rate})
   end
@@ -563,6 +563,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec display_565(pid(), image_data()) :: :ok
   def display_565(self_pid, image_data) when is_binary(image_data) or is_list(image_data) do
     GenServer.call(self_pid, {:display_565, image_data})
   end
@@ -587,6 +588,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec display_666(pid(), image_data()) :: :ok
   def display_666(self_pid, image_data) when is_binary(image_data) or is_list(image_data) do
     GenServer.call(self_pid, {:display_666, image_data})
   end
@@ -611,6 +613,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec display(pid(), image_data(), color_format()) :: :ok
   def display(self_pid, image_data, source_color)
       when is_binary(image_data) and (source_color == :rgb888 or source_color == :bgr888) do
     GenServer.call(self_pid, {:display, image_data, source_color})
@@ -632,9 +635,18 @@ defmodule ILI9486 do
        when is_list(image_data) and (source_color == :rgb888 or source_color == :bgr888) do
     _display(
       display,
-      Enum.map(image_data, &Enum.into(&1, <<>>, fn bit -> <<bit::8>> end)),
+      image_data_to_binary(image_data),
       source_color
     )
+  end
+
+  defp image_data_to_binary(image_data) do
+    image_data
+    |> Enum.map(fn
+      row_of_bytes when is_list(row_of_bytes) -> Enum.map(row_of_bytes, &<<&1::8>>)
+      byte when is_integer(byte) -> <<byte::8>>
+    end)
+    |> IO.iodata_to_binary()
   end
 
   @doc """
@@ -644,12 +656,13 @@ defmodule ILI9486 do
   - **callback**: callback function. 3 arguments: `pin`, `timestamp`, `status`
   """
   @doc functions: :client
-  def set_touch_callback(self_pid, callback) when is_function(callback) do
+  @spec set_touch_callback(pid(), touch_callback()) :: :ok
+  def set_touch_callback(self_pid, callback) when is_function(callback, 3) do
     GenServer.call(self_pid, {:set_touch_callback, callback})
   end
 
   defp _set_touch_callback(display = %ILI9486{touch_pid: touch_pid}, callback)
-       when is_function(callback) do
+       when is_function(callback, 3) do
     GPIOIRQDevice.set_callback(touch_pid, callback)
     display
   end
@@ -668,6 +681,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec command(pid(), byte(), Keyword.t()) :: :ok
   def command(self_pid, cmd, opts \\ []) when is_integer(cmd) do
     GenServer.call(self_pid, {:command, cmd, opts})
   end
@@ -707,6 +721,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec data(pid(), iodata()) :: :ok
   def data(_self_pid, []), do: :ok
 
   def data(self_pid, data) do
@@ -743,6 +758,7 @@ defmodule ILI9486 do
   **return**: `display`
   """
   @doc functions: :client
+  @spec send(pid(), integer() | iodata(), boolean()) :: :ok
   def send(self_pid, bytes, is_data)
       when (is_integer(bytes) or is_list(bytes)) and is_boolean(is_data) do
     GenServer.call(self_pid, {:send, bytes, is_data})
@@ -896,7 +912,7 @@ defmodule ILI9486 do
     Circuits.SPI.open("spidev#{port}.#{cs}", speed_hz: speed_hz)
   end
 
-  defp _init_spi(_port, _cs, _speed_hz), do: nil
+  defp _init_spi(_port, _cs, _speed_hz), do: {:error, :invalid_cs}
 
   defp _init_touch_irq(nil), do: {:ok, nil}
 
