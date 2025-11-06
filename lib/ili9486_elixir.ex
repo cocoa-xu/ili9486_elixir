@@ -4,7 +4,7 @@ defmodule ILI9486 do
   """
 
   use GenServer
-  use Bitwise
+  import Bitwise
 
   @enforce_keys [:gpio, :opts, :lcd_spi, :data_bus, :display_mode, :chunk_size]
   defstruct [

@@ -1,8 +1,4 @@
-defmodule Ili9486ElixirTest do
+defmodule ILI9486Test do
   use ExUnit.Case
-  doctest Ili9486Elixir
-
-  test "greets the world" do
-    assert Ili9486Elixir.hello() == :world
-  end
+  doctest ILI9486
 end
