@@ -31,7 +31,7 @@ defmodule GPIOIRQDevice do
       "error" <> _ ->
         irq_event_loop_init(gpio, callback)
 
-      msg ->
+      _msg ->
         irq_event_loop(gpio, callback)
     end
   end

@@ -15,7 +15,7 @@ Tested on
 # RST not connected
 # SPI speed: 16MHz
 # Pixel Format: BGR565
-{:ok, disp} = ILI9486.new()
+{:ok, disp} = ILI9486.start_link()
 ```
 
 ```elixir
@@ -26,7 +26,7 @@ Tested on
 # Pixel Format: RGB666 (for demo only, not necessary)
 # Touch panel device at /dev/spidev0.1
 # Touch panel IRQ PIN 17
-{:ok, disp} = ILI9486.new(
+{:ok, disp} = ILI9486.start_link(
     speed_hz: 16_000_000,
     pix_fmt: :bgr666,
     rst: 25,
@@ -42,7 +42,7 @@ high-speed variant (125MHz SPI)
 # RST connects to PIN 25 (for demo only, not necessary)
 # SPI speed: 125MHz
 # Pixel Format: BGR666 (for demo only, not necessary)
-{:ok, disp} = ILI9486.new(
+{:ok, disp} = ILI9486.start_link(
     is_high_speed: true,
     speed_hz: 125_000_000,
     pix_fmt: :bgr666,
@@ -59,7 +59,7 @@ high-speed variant (125MHz SPI) with touch panel
 # Pixel Format: BGR666 (for demo only, not necessary)
 # Touch panel device at /dev/spidev0.1
 # Touch panel IRQ PIN 17
-{:ok, disp} = ILI9486.new(
+{:ok, disp} = ILI9486.start_link(
     is_high_speed: true,
     speed_hz: 125_000_000,
     pix_fmt: :bgr666,
@@ -77,7 +77,7 @@ injecting pre-opened SPI and GPIO handles
 {:ok, gpio_dc}  = Circuits.GPIO.open(24, :output)
 {:ok, gpio_rst} = Circuits.GPIO.open(25, :output)
 
-{:ok, disp} = ILI9486.new(
+{:ok, disp} = ILI9486.start_link(
     spi_lcd:   spi_lcd,
     spi_touch: spi_touch,
     gpio_dc:   gpio_dc,
