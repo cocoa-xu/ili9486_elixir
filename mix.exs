@@ -10,6 +10,7 @@ defmodule Ili9486Elixir.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       description: description(),
       package: package(),
+      dialyzer: dialyzer(),
       deps: deps(),
       docs: docs(),
       source_url: "https://github.com/cocoa-xu/ili9486_elixir"
@@ -25,7 +26,16 @@ defmodule Ili9486Elixir.MixProject do
       {:cvt_color, "~> 0.1.3"},
       {:circuits_gpio, "~> 2.0 or ~> 1.0"},
       {:circuits_spi, "~> 2.0 or ~> 1.0"},
+      {:dialyxir, "~> 1.4", only: :dev, runtime: false},
       {:ex_doc, "~> 0.27", only: [:dev, :docs], runtime: false}
+    ]
+  end
+
+  defp dialyzer() do
+    [
+      flags: [:missing_return, :extra_return, :unmatched_returns, :error_handling, :underspecs],
+      list_unused_filters: true,
+      plt_file: {:no_warn, "_build/plts/dialyzer.plt"}
     ]
   end
 
