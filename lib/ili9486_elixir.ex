@@ -213,13 +213,11 @@ defmodule ILI9486 do
   )
   ```
   """
-  @doc functions: :client
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: opts[:name])
   end
 
   @deprecated "Use start_link/1 instead"
-  @doc functions: :client
   def new(opts \\ []) do
     GenServer.start_link(__MODULE__, opts)
   end
@@ -383,7 +381,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def reset(self_pid) do
     GenServer.call(self_pid, :reset)
   end
@@ -410,7 +407,6 @@ defmodule ILI9486 do
 
   **return**: `%{height: height, width: width}`
   """
-  @doc functions: :client
   def size(self_pid) do
     GenServer.call(self_pid, :size)
   end
@@ -426,7 +422,6 @@ defmodule ILI9486 do
 
   **return**: one of `:bgr565`, `:rgb565`, `:bgr666`, `:rgb666`
   """
-  @doc functions: :client
   def pix_fmt(self_pid) do
     GenServer.call(self_pid, :pix_fmt)
   end
@@ -443,7 +438,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def set_pix_fmt(self_pid, pix_fmt)
       when pix_fmt == :bgr565 or pix_fmt == :rgb565 or pix_fmt == :bgr666 or pix_fmt == :rgb666 do
     GenServer.call(self_pid, {:set_pix_fmt, pix_fmt})
@@ -463,7 +457,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def set_display(self_pid, status) when status == :on or status == :off do
     GenServer.call(self_pid, {:set_display, status})
   end
@@ -484,7 +477,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def set_display_mode(self_pid, display_mode) do
     GenServer.call(self_pid, {:set_display_mode, display_mode})
   end
@@ -527,7 +519,6 @@ defmodule ILI9486 do
 
   **return**: `:ok` | `{:error, reason}`
   """
-  @doc functions: :client
   def set_frame_rate(self_pid, frame_rate) do
     GenServer.call(self_pid, {:set_frame_rate, frame_rate})
   end
@@ -562,7 +553,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def display_565(self_pid, image_data) when is_binary(image_data) or is_list(image_data) do
     GenServer.call(self_pid, {:display_565, image_data})
   end
@@ -586,7 +576,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def display_666(self_pid, image_data) when is_binary(image_data) or is_list(image_data) do
     GenServer.call(self_pid, {:display_666, image_data})
   end
@@ -610,7 +599,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def display(self_pid, image_data, source_color)
       when is_binary(image_data) and (source_color == :rgb888 or source_color == :bgr888) do
     GenServer.call(self_pid, {:display, image_data, source_color})
@@ -643,7 +631,6 @@ defmodule ILI9486 do
   - **display**: `%ILI9486{}`
   - **callback**: callback function. 3 arguments: `pin`, `timestamp`, `status`
   """
-  @doc functions: :client
   def set_touch_callback(self_pid, callback) when is_function(callback) do
     GenServer.call(self_pid, {:set_touch_callback, callback})
   end
@@ -667,7 +654,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def command(self_pid, cmd, opts \\ []) when is_integer(cmd) do
     GenServer.call(self_pid, {:command, cmd, opts})
   end
@@ -706,7 +692,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def data(_self_pid, []), do: :ok
 
   def data(self_pid, data) do
@@ -742,7 +727,6 @@ defmodule ILI9486 do
 
   **return**: `display`
   """
-  @doc functions: :client
   def send(self_pid, bytes, is_data)
       when (is_integer(bytes) or is_list(bytes)) and is_boolean(is_data) do
     GenServer.call(self_pid, {:send, bytes, is_data})

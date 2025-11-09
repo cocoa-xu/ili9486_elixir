@@ -38,7 +38,6 @@ defmodule Ili9486Elixir.MixProject do
   defp docs() do
     [
       groups_for_functions: [
-        API: &(&1[:functions] == :client),
         Constants: &(&1[:functions] == :constants)
       ]
     ]
