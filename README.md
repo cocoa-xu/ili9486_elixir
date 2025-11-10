@@ -1,5 +1,7 @@
 # ILI9486-Elixir
 
+[![Hex.pm](https://img.shields.io/hexpm/v/ili9486_elixir.svg?style=flat&color=blue)](https://hex.pm/packages/ili9486_elixir)
+
 ILI9486 driver for Elixir.
 
 Tested on 
@@ -93,7 +95,7 @@ by adding `ili9486_elixir` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ili9486_elixir, "~> 0.1.3"}
+    {:ili9486_elixir, "~> 0.1"}
   ]
 end
 ```
